@@ -8,12 +8,15 @@ from langchain.vectorstores import FAISS
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-STORE_DIR = BASE_DIR / "store"
+DEFAULT_DATA_DIR = BASE_DIR / "data"
+DEFAULT_STORE_DIR = BASE_DIR / "store"
 
 
 def load_documents(folder_path: Path):
     documents = []
+
+    if not folder_path.exists():
+        return documents
 
     for file_path in folder_path.rglob("*"):
         if not file_path.is_file():
@@ -34,11 +37,11 @@ def load_documents(folder_path: Path):
     return documents
 
 
-def build_vector_store():
-    DATA_DIR.mkdir(exist_ok=True)
-    STORE_DIR.mkdir(exist_ok=True)
+def build_vector_store(data_dir: Path, store_dir: Path):
+    data_dir.mkdir(parents=True, exist_ok=True)
+    store_dir.mkdir(parents=True, exist_ok=True)
 
-    documents = load_documents(DATA_DIR)
+    documents = load_documents(data_dir)
     if not documents:
         print("No supported documents found in data/")
         return 0
@@ -58,33 +61,34 @@ def build_vector_store():
     )
 
     vectorstore = FAISS.from_documents(chunks, embeddings)
-    vectorstore.save_local(str(STORE_DIR))
+    vectorstore.save_local(str(store_dir))
 
-    print(f"Saved vector store with {len(chunks)} chunks to {STORE_DIR}")
+    print(f"Saved vector store with {len(chunks)} chunks to {store_dir}")
     return len(chunks)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build vector store from documents in data/")
+    parser = argparse.ArgumentParser(
+        description="Build vector store from documents in data/"
+    )
     parser.add_argument(
         "--data-dir",
         type=str,
-        default=str(DATA_DIR),
+        default=str(DEFAULT_DATA_DIR),
         help="Folder containing source documents",
     )
     parser.add_argument(
         "--store-dir",
         type=str,
-        default=str(STORE_DIR),
+        default=str(DEFAULT_STORE_DIR),
         help="Folder where the FAISS index will be saved",
     )
     args = parser.parse_args()
 
-    global DATA_DIR, STORE_DIR
-    DATA_DIR = Path(args.data_dir)
-    STORE_DIR = Path(args.store_dir)
+    data_dir = Path(args.data_dir)
+    store_dir = Path(args.store_dir)
 
-    build_vector_store()
+    build_vector_store(data_dir, store_dir)
 
 
 if __name__ == "__main__":
